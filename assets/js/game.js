@@ -11,9 +11,13 @@ Window.Game = {};
     let acceptInput = true;
     let score = 0;
     let pauze = false;
+    let chancesSpawnApple = 0;
+    const SPAWN_NORMAL_APPLE_CHANCE = 9;
+    let eaten = 0;
+    let SPEED_THRESHOLD = 5;
 
     // Limits the game speed by reducing the rate at which frames are drawn
-    let frameCounterLimit = 30;
+    let frameCounterLimit = 40;
 
     // Set the canvas height and width
     canvas.height = canvas.width = CANVAS_SIZE * CELL_SIZE;
@@ -41,67 +45,126 @@ Window.Game = {};
             snake.y += snake.dy;
         }
 
-        // Checks if the snake has reached edge of the screen
-        checkEdgeCollision();        
-
         // Draw the apple
-        drawApple();
+        drawApples();
 
         // Loop over each part of the snake to draw it for the next frame and check for collision with itself
         moveSnake();
+
+        // Checks if the snake has reached edge of the screen
+        checkEdgeCollision();   
     }
 
-    // When the snake reaches a horizontal or vertical edge, wrap it around to the opposite edge
     function checkEdgeCollision() {
         // Check horizontal edges
-        if (snake.x < 0) {
-            snake.x = canvas.width - CELL_SIZE;
+        if (snake.x < 0 || snake.x >= canvas.width) {
+            pauze = true;
+            resetGame();
+            GameOver();
+            resetScore();
+            resetSpeed();
+            resetColor();
         }
-        else if (snake.x >= canvas.width) {
-            snake.x = 0;
-        }
-
         // Check vertical edges
-        if (snake.y < 0) {
-            snake.y = canvas.height - CELL_SIZE;
-        }
-        else if (snake.y >= canvas.height) {
-            snake.y = 0;
+        if (snake.y < 0 || snake.y >= canvas.height) {
+            resetGame();
+            GameOver();
+            resetScore();
+            resetSpeed();
+            resetColor();
         }
     }
     
+    function GameOver() {
+        if (pauze = true) {
+        Window.Utils.CreateModal("Game over","You scored: <i>"+score+"</i> points");
+        }
+    }
+
     function resetGame() {
-        pauze = false;
         Window.Utils.DismissModal();
-        resetScore();
         resetSnake();
         randomizeApple();
+        pauze = false;
     }
 
-    function GameOver()
-    {
-        pauze = true;
-        Window.Utils.CreateModal("Game over","You scored: <i>"+score+"</i> points");
-
-    }
-
-    Game.Reset = resetGame;
+      Game.Reset = resetGame;
 
     function resetScore() {
         score = 0;
         updateScore();
     }
 
+    function resetSpeed() {
+        frameCounterLimit = 40;
+    }
+
+    function resetColor() {
+        snake.color = 'green';
+    }
+
     // Increase the length of the snake and place the apple at a new location
     function eatApple() {
-        // Increase the snake's length
         snake.length++;
-
+        score++;
+        eaten++;
         // Update the score text
         updateScore();
-
+        snake.color = getRandomColor();
+        calculateChances();
         // Place a new apple on a random location in the canvas
         randomizeApple();
+        randomizeGoldenApple();
+    }
+
+    function eatGoldenApple() {
+        snake.length++;
+        score += 3;
+        eaten++;
+        // Update the score text
+        updateScore();
+        snake.color = getRandomColor();
+        calculateChances();
+        // Place a new apple on a random location in the canvas
+        randomizeApple();
+        randomizeGoldenApple();
+    }
+
+    // Updates the score text
+    function updateScore() {
+        scoreText.textContent = 'Score: ' + score;
+        encreaseSpeed();
+    }
+
+    function encreaseSpeed() {
+        while (eaten <= 40 && eaten !== 1 && eaten % SPEED_THRESHOLD === 0) {
+            frameCounterLimit -= 4;
+            return;
+        }
+    }
+    
+    function getRandomColor() {
+        var letters = '0123456789ABCDEF';
+        var newColor = '#';
+        for (var i = 0; i < 6; i++) {
+          newColor += letters[Math.floor(Math.random() * 16)];
+        }
+        return newColor;
+      }
+    
+    function calculateChances() {
+        chancesSpawnApple = Math.round(Math.random() * 10);
+    }
+
+    // Draws the apple on the screen
+    function drawApples() { 
+            if (chancesSpawnApple <= SPAWN_NORMAL_APPLE_CHANCE) {
+                context.fillStyle = apple.color;
+                context.fillRect(apple.x, apple.y, CELL_SIZE - 1, CELL_SIZE - 1);
+                return;
+        }  
+            context.fillStyle = goldenApple.color;
+            context.fillRect(goldenApple.x, goldenApple.y, CELL_SIZE - 1, CELL_SIZE - 1);
     }
 
     // Handles movement, collision and drawing of the snake
@@ -114,11 +177,15 @@ Window.Game = {};
             snake.cells.pop();
         }
 
+        function resetSpeed() {
+            frameCounterLimit = 40;
+        }
+    
         // Draw each of the snake's cells
         snake.cells.forEach(function (cell, index) {
             // Set the snake's color
             context.fillStyle = snake.color;
-
+        
             // A cell is a piece of the snake, and the index and the index defines the position in the snake
             context.fillRect(cell.x, cell.y, CELL_SIZE, CELL_SIZE);
 
@@ -127,25 +194,21 @@ Window.Game = {};
                 eatApple();
             }
 
+            if (cell.x === goldenApple.x && cell.y === goldenApple.y) {
+                eatGoldenApple();
+            }
             // Check for collision with all cells after the current one to see if the snake collides with itself
             for (var i = index + 1; i < snake.cells.length; i++) {
                 // Snake has collided with itself
                 if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y && !pauze) {
+                    resetGame();
                     GameOver();
+                    resetScore();
+                    resetSpeed();
+                    resetColor();
                 }
             }
         });
-    }
-
-    // Updates the score text
-    function updateScore() {
-        scoreText.textContent = 'Score: ' + score;
-    }
-
-    // Draws the apple on the screen
-    function drawApple() {
-        context.fillStyle = apple.color;
-        context.fillRect(apple.x, apple.y, CELL_SIZE - 1, CELL_SIZE - 1);
     }
 
     // Listens to keyboard events, used to control the snake
@@ -160,10 +223,20 @@ Window.Game = {};
             snake.dy = 0;
             acceptInput = false;
         }
+        else if (keyBoardEvent.which === KEY_RIGHT && snake.dx === 0) {
+            snake.dx = +CELL_SIZE;
+            snake.dy = 0;
+            acceptInput = false;
+        }
         // Change direction when the up arrow key is pressed and is not moving on the Y axis
         else if (keyBoardEvent.which === KEY_UP && snake.dy === 0) {
             snake.dx = 0;
             snake.dy = -CELL_SIZE;
+            acceptInput = false;
+        }
+        else if (keyBoardEvent.which === KEY_DOWN && snake.dy === 0) {
+            snake.dx = 0;
+            snake.dy = +CELL_SIZE;
             acceptInput = false;
         }
     });

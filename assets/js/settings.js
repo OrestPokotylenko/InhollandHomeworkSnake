@@ -14,7 +14,7 @@
 // The dimensions of each cell
 const CELL_SIZE = 20;
 // The number of cells the canvas contains both horizontally and vertically
-const CANVAS_SIZE = 5;
+const CANVAS_SIZE = 30;
 
 /**
  * Keyboard actions have numerical values. Assigning these to constants allows us
